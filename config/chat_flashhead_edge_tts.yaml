@@ -27,7 +27,10 @@ default:
         module: client/rtc_client/client_handler_rtc
         connection_ttl: 900
         concurrent_limit: 2
-        # turn_config:   # uncomment for public-internet browser access
+        # 公网浏览器访问必须启用 TURN。把 YOUR_SERVER_IP 换成服务器公网 IP，
+        # 并运行 bash scripts/setup_coturn.sh（账号默认 username/password）。
+        # 若浏览器与服务器在同一内网/本机，可不启用（走 STUN/直连）。
+        # turn_config:
         #   turn_provider: "turn_server"
         #   urls: ["turn:YOUR_SERVER_IP:3478?transport=tcp", "turns:YOUR_SERVER_IP:5349"]
         #   username: "username"

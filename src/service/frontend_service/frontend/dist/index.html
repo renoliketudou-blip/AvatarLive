@@ -1,32 +1,260 @@
 <!doctype html>
-<html lang="en" data-prefers-color-scheme="light">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>OpenAvatarChat</title>
-    <style>
-      /* 禁止原生触摸行为 */
-      html,
-      body {
-        touch-action: manipulation;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        user-select: none;
-        overscroll-behavior: none;
-      }
-    </style>
-    <script type="module" crossorigin src="./assets/main.ChnQ_pab.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/index.l6nW9Nb8.js">
-    <link rel="stylesheet" crossorigin href="./assets/index.CotOIswE.css">
-    <link rel="stylesheet" crossorigin href="./assets/main.BHFa5GgP.css">
-  </head>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>AvatarLive · 实时数字人</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b;
+    --border: #2a2f3a; --text: #e6e9ef; --muted: #8b93a3;
+    --accent: #4f8cff; --accent2: #22c55e; --danger: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1a2340 0%, var(--bg) 60%);
+    color: var(--text); font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px;
+  }
+  header { text-align: center; margin: 8px 0 16px; }
+  header h1 { font-size: 22px; letter-spacing: 1px; }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .card {
+    width: 100%; max-width: 440px; background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px; margin-bottom: 12px;
+  }
+  .video-wrap { position: relative; aspect-ratio: 1/1; background: #000; border-radius: 10px; overflow: hidden; }
+  video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  .video-msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 14px; text-align: center; padding: 20px; line-height: 1.6;
+  }
+  .row { display: flex; gap: 8px; margin-top: 10px; }
+  input[type=text] {
+    flex: 1; background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px 12px; font-size: 14px; outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); }
+  button {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 10px 16px; font-size: 14px; cursor: pointer; white-space: nowrap;
+  }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.ghost { background: var(--panel2); border: 1px solid var(--border); color: var(--text); }
+  button.success { background: var(--accent2); }
+  button.danger { background: var(--danger); }
+  .label { font-size: 12px; color: var(--muted); margin: 12px 0 6px; display: block; }
+  .status { font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; word-break: break-all; }
+  .status .ok { color: var(--accent2); }
+  .status .err { color: var(--danger); }
+  .file-btn {
+    display: inline-block; background: var(--panel2); border: 1px dashed var(--border);
+    color: var(--text); border-radius: 8px; padding: 10px 14px; font-size: 13px; cursor: pointer;
+  }
+  #file { display: none; }
+  #file-name { color: var(--muted); font-size: 12px; margin-left: 8px; }
+  footer { color: var(--muted); font-size: 11px; margin-top: 8px; text-align: center; line-height: 1.6; }
+  @media (max-width: 480px) { .row { flex-wrap: wrap; } .row button { flex: 1; } }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Avatar<span>Live</span></h1>
+    <p>上传一张照片 · 文字 / 语音驱动 · 实时数字人</p>
+  </header>
 
-  <body>
-    <div id="app"></div>
-  </body>
+  <div class="card">
+    <div class="video-wrap">
+      <video id="avatar" autoplay playsinline muted></video>
+      <div class="video-msg" id="videoMsg">点击下方「连接数字人」开始<br/>无需摄像头权限</div>
+    </div>
+    <div class="row">
+      <button id="btnConnect">连接数字人</button>
+      <button id="btnVoice" class="ghost" disabled>🎙 语音开</button>
+    </div>
+    <div class="status" id="status">未连接</div>
+  </div>
+
+  <div class="card">
+    <label class="label">让数字人说话（文字）</label>
+    <div class="row">
+      <input type="text" id="txt" placeholder="输入要说的话，回车发送…" />
+      <button id="btnSpeak" disabled>说</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <label class="label">换形象（上传照片）</label>
+    <label class="file-btn" for="file">📷 选择图片作为数字人</label>
+    <input type="file" id="file" accept="image/*" />
+    <span id="file-name"></span>
+    <div class="status" id="avatarStatus"></div>
+  </div>
+
+  <footer>
+    AvatarLive · fork of OpenAvatarChat · FlashHead<br/>
+    浏览器只请求麦克风，不使用摄像头
+  </footer>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const video = $("avatar"), msg = $("videoMsg"), st = $("status");
+  const btnConnect = $("btnConnect"), btnVoice = $("btnVoice");
+  const btnSpeak = $("btnSpeak"), txt = $("txt");
+  const fileEl = $("file"), fileName = $("file-name"), avatarStatus = $("avatarStatus");
+
+  let pc = null, dc = null, micStream = null, micEnabled = true, connected = false;
+  let rtcConfig = null;
+
+  function setStatus(text, cls) {
+    st.innerHTML = text.replace(/\n/g, "<br/>");
+    st.className = "status " + (cls || "");
+  }
+  function setVideoMsg(t) { msg.textContent = t; }
+
+  async function loadInitConfig() {
+    try {
+      const r = await fetch("/openavatarchat/initconfig", { cache: "no-store" });
+      const cfg = await r.json();
+      rtcConfig = cfg.rtc_configuration || null;
+      if (rtcConfig) setStatus("已获取 TURN 配置");
+    } catch (e) {
+      setStatus("获取 initconfig 失败: " + e.message, "err");
+    }
+  }
+
+  // 占位视频轨：canvas 生成，不请求摄像头
+  function makePlaceholderVideoTrack() {
+    const canvas = document.createElement("canvas");
+    canvas.width = 320; canvas.height = 240;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#1a1d24"; ctx.fillRect(0, 0, 320, 240);
+    ctx.fillStyle = "#4f8cff"; ctx.font = "bold 22px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("AvatarLive", 160, 120);
+    const stream = canvas.captureStream(10);
+    return stream.getVideoTracks()[0];
+  }
+
+  async function getMicTrack() {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      return micStream.getAudioTracks()[0];
+    } catch (e) {
+      setStatus("未获得麦克风权限（文字功能仍可用）: " + e.message, "err");
+      return null;
+    }
+  }
+
+  async function connect() {
+    btnConnect.disabled = true;
+    setStatus("正在连接…");
+    if (!rtcConfig) await loadInitConfig();
+
+    const ice = rtcConfig || { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    pc = new RTCPeerConnection(ice);
+
+    const vTrack = makePlaceholderVideoTrack();
+    pc.addTrack(vTrack);
+    const aTrack = await getMicTrack();
+    if (aTrack && micStream) pc.addTrack(aTrack, micStream);
+
+    dc = pc.createDataChannel("chat");
+    dc.onopen = () => setStatus("数据通道已建立");
+
+    pc.ontrack = (e) => {
+      if (e.track.kind === "video") {
+        video.srcObject = e.streams[0];
+        video.muted = true; // 自播放策略：视频先静音，音频在交互后启用
+        setVideoMsg("");
+      }
+    };
+    pc.oniceconnectionstatechange = () => {
+      const s = pc.iceConnectionState;
+      setStatus("ICE: " + s);
+      if (s === "connected") { setStatus("✅ 已连接 — 数字人已上线", "ok"); connected = true; btnSpeak.disabled = false; }
+      if (s === "failed" || s === "disconnected") {
+        setStatus("⚠️ 连接失败。若在公网访问，请确认服务端已配置 TURN（config 里 turn_config）。", "err");
+      }
+    };
+
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const res = await fetch("/webrtc/offer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: offer.type, sdp: offer.sdp, webrtc_id: "ui-" + Date.now() }),
+      });
+      if (!res.ok) throw new Error("offer HTTP " + res.status);
+      const answer = await res.json();
+      await pc.setRemoteDescription({ type: answer.type, sdp: answer.sdp });
+    } catch (e) {
+      setStatus("连接失败: " + e.message, "err");
+    }
+  }
+
+  btnConnect.onclick = connect;
+
+  btnVoice.onclick = () => {
+    if (!micStream) { setStatus("未获得麦克风", "err"); return; }
+    micEnabled = !micEnabled;
+    micStream.getAudioTracks().forEach(t => (t.enabled = micEnabled));
+    btnVoice.textContent = micEnabled ? "🎙 语音开" : "🔇 语音关";
+    btnVoice.classList.toggle("ghost", micEnabled);
+  };
+
+  async function speak() {
+    const text = txt.value.trim();
+    if (!text) return;
+    btnSpeak.disabled = true;
+    setStatus("合成中…（edge-tts 在线，约 2-6s）");
+    try {
+      const res = await fetch("/api/speak", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text }),
+      });
+      const j = await res.json();
+      if (j.status === "ok") setStatus("✅ 数字人已说话：" + text, "ok");
+      else setStatus("❌ " + (j.error || "未知错误"), "err");
+    } catch (e) {
+      setStatus("发送失败: " + e.message, "err");
+    } finally { btnSpeak.disabled = false; }
+  }
+  btnSpeak.onclick = speak;
+  txt.addEventListener("keydown", (e) => { if (e.key === "Enter") speak(); });
+
+  fileEl.onchange = async () => {
+    const f = fileEl.files[0];
+    if (!f) return;
+    fileName.textContent = f.name;
+    avatarStatus.textContent = "上传中…";
+    const fd = new FormData();
+    fd.append("file", f);
+    try {
+      const res = await fetch("/api/avatar", { method: "POST", body: fd });
+      const j = await res.json();
+      if (j.status === "ok") {
+        avatarStatus.className = "status ok";
+        avatarStatus.textContent = "✅ 已上传，数字人形象已切换（重连页面生效）";
+      } else {
+        avatarStatus.className = "status err";
+        avatarStatus.textContent = "❌ " + (j.error || "上传失败");
+      }
+    } catch (e) {
+      avatarStatus.className = "status err";
+      avatarStatus.textContent = "上传失败: " + e.message;
+    }
+  };
+
+  // 用户手势后启用声音
+  document.addEventListener("click", function enableSound() {
+    if (video.srcObject) video.muted = false;
+  }, { once: true });
+
+  loadInitConfig();
+})();
+</script>
+</body>
 </html>
