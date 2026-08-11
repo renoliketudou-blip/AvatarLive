@@ -371,13 +371,6 @@ class HandlerAvatarFlashHead(HandlerBase):
                 input_consume_mode=ChatDataConsumeMode.ONCE,
             )
         }
-        if context.config.direct_voice_input:
-            # Direct voice mode: also consume VAD-segmented HUMAN_AUDIO (16kHz)
-            # so the operator's raw voice drives the avatar (no ASR/LLM/TTS).
-            inputs[ChatDataType.HUMAN_AUDIO] = HandlerDataInfo(
-                type=ChatDataType.HUMAN_AUDIO,
-                input_consume_mode=ChatDataConsumeMode.ONCE,
-            )
         outputs = {
             ChatDataType.AVATAR_AUDIO: HandlerDataInfo(
                 type=ChatDataType.AVATAR_AUDIO,
@@ -399,19 +392,10 @@ class HandlerAvatarFlashHead(HandlerBase):
 
     def handle(self, context: HandlerContext, inputs: ChatData,
                output_definitions: Dict[ChatDataType, HandlerDataInfo]):
-        """Process avatar audio input and feed to FlashHead processor.
-
-        Two input paths:
-          - AVATAR_AUDIO (from TTS): resample to 16kHz -> FlashHead.
-          - HUMAN_AUDIO (VAD, direct_voice_input mode): operator's raw voice at
-            16kHz already matches the algo rate; upsample to the output rate for
-            client playback. Bypasses ASR/LLM/TTS entirely.
-        """
-        context = cast(FlashHeadContext, context)
-        is_direct = (context.config.direct_voice_input
-                     and inputs.type == ChatDataType.HUMAN_AUDIO)
-        if inputs.type != ChatDataType.AVATAR_AUDIO and not is_direct:
+        """Process AVATAR_AUDIO input: resample to 16kHz and feed to FlashHead processor."""
+        if inputs.type != ChatDataType.AVATAR_AUDIO:
             return
+        context = cast(FlashHeadContext, context)
 
         # --- Track TTS AVATAR_AUDIO stream via CLIENT_PLAYBACK lifecycle streams ---
         stream_key_str = inputs.stream_id.stream_key_str if inputs.stream_id else None
@@ -452,9 +436,7 @@ class HandlerAvatarFlashHead(HandlerBase):
 
         audio_array = audio_array.squeeze()
 
-        # --- Resample input to FlashHead algo rate (16kHz) ---
-        #   AVATAR_AUDIO (TTS): 24kHz -> 16kHz
-        #   HUMAN_AUDIO (direct voice): already 16kHz, no-op
+        # --- Resample from TTS output rate to FlashHead algo rate (e.g. 24kHz -> 16kHz) ---
         input_sample_rate = audio_entry.sample_rate
         algo_sample_rate = context.config.algo_audio_sample_rate
 
@@ -467,17 +449,9 @@ class HandlerAvatarFlashHead(HandlerBase):
             audio_array_16k = audio_array
 
         # --- Prepare original audio for synchronized output via frame collector ---
-        # The output rate is output_audio_sample_rate (e.g. 24kHz). For TTS input
-        # the source is already at that rate; for direct voice (16kHz) upsample.
-        output_sample_rate = context.config.output_audio_sample_rate
         original_audio = inputs.data.get_main_data()
         if original_audio is not None:
             original_audio = original_audio.astype(np.float32).squeeze()
-            if input_sample_rate != output_sample_rate:
-                import librosa
-                original_audio = librosa.resample(
-                    original_audio, orig_sr=input_sample_rate, target_sr=output_sample_rate,
-                )
         else:
             # Fallback: synthesize silence at the ratio matching 16kHz input
             ratio = context.config.output_audio_sample_rate / context.config.algo_audio_sample_rate
@@ -487,8 +461,7 @@ class HandlerAvatarFlashHead(HandlerBase):
             logger.info(
                 f"FlashHead handle: speech_id={speech_id}, speech_end={speech_end}, "
                 f"audio_16k.shape={audio_array_16k.shape}, "
-                f"input_sr={input_sample_rate}, algo_sr={algo_sample_rate}, "
-                f"direct={is_direct}"
+                f"input_sr={input_sample_rate}, algo_sr={algo_sample_rate}"
             )
 
         # --- Feed to processor (buffering + inference + frame collector handles output) ---
