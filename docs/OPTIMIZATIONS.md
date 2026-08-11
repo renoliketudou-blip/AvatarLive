@@ -91,3 +91,23 @@ FlashHead 用一张参考图（`cond_image_path`）作为数字人的脸。**这
 | 换形象后没生效 | 确认 `/api/avatar` 返回 200；已连会话需重新加载页面重连（或等下一帧自动用新脸） |
 | 冷启动很久 | torch.compile 已禁用（Blackwell 兼容）；加载 ~9s 属正常 |
 | mediapipe 报错 | 只有 `use_face_crop: true` 才需要 mediapipe，默认不装也能跑 |
+
+## 9. 上传超长语音 → 口型错位（帧积压 backlog）
+
+**现象**：`POST /api/speak` 上传一段较长音频（实测 **69 秒**），数字人口型和声音对不上（嘴动时刻与声音错位）。
+
+**根因**（pod 日志 `oac_run.log` 实测定量）：
+- `broadcast_speak` 把**整段音频一次性全量** `add_audio(..., end=True)` 喂给 FlashHead。
+- FlashHead 是流式引擎：每次只推理 `slice_len=24 帧`（≈1 秒语音），推理速度 **57-68 FPS**（正常，不是推理慢）。
+- 但**产出端（推理 60FPS）≫ 消费端（RTC 视频轨固定 25FPS）**，帧在 `_output_queue` 越积越多，日志出现 `FlashHead TIMING: frame queue_wait 60→81 秒 (backlog)`。
+- 客户端先播队列里最早的帧，音频轨却按自己的时钟走 → 音画错位。
+
+**关键对比**：5.4s 音频 ≈ 135 帧，无积压，口型正常；69s 音频 ≈ 1725 帧，积压暴涨到 81 秒。**时长超过约 15-20 秒后积压明显**。
+
+**结论**：不是语速快、不是推理慢，而是**一次性注入超长音频**导致的队列积压。
+
+**已知的解决方向（未实施）**：
+- **A（根治，推荐）**：改 `broadcast_speak` 为**流式喂入**——把音频按 ~1 秒切片多次 `add_audio(end=False)`，最后一片 `end=True`，让推理跟着消费节奏走，避免积压。改动集中在 `src/handlers/avatar/flashhead/avatar_handler_flashhead.py` 的 `broadcast_speak`。
+- **B（治标）**：前端/文档提示「单段音频建议 ≤ 15 秒」。
+
+**复现/验证**：pod 上 `resource/test/sample_speech_16k.wav`（5.4s）正常；上传 60s+ 音频可见 `queue_wait` 持续增长。自测脚本 `/tmp/upload_audio_test.py`。
