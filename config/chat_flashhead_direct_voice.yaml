@@ -1,0 +1,81 @@
+# AvatarLive direct-voice config: mic -> VAD -> FlashHead (no ASR/LLM/TTS).
+#
+# The operator's raw voice drives the digital human directly — no speech
+# recognition, no LLM, no TTS re-synthesis. VAD (Silero) segments the mic
+# audio into speech chunks; FlashHead consumes those HUMAN_AUDIO segments
+# and mouth-syncs to the real voice; the client hears the operator's own
+# voice (upsampled to 24kHz) synchronized with the avatar.
+#
+# Text input (WebUI textbox / POST /api/speak {"text": ...}) is unaffected:
+# it synthesizes via edge-tts inside api_server and broadcasts.
+#
+# For browser access over the public internet, uncomment the RtcClient.turn_config
+# block and fill in your coturn credentials (see docs/DEPLOYMENT.md).
+default:
+  logger:
+    log_level: "INFO"
+  service:
+    host: "0.0.0.0"
+    port: 8282
+    cert_file: "ssl_certs/localhost.crt"
+    cert_key: "ssl_certs/localhost.key"
+  chat_engine:
+    model_root: "models"
+    concurrent_limit: 2
+    handler_search_path:
+      - "src/handlers"
+    handler_configs:
+      RtcClient:
+        module: client/rtc_client/client_handler_rtc
+        connection_ttl: 900
+        concurrent_limit: 2
+        # 公网浏览器访问必须启用 TURN。把 YOUR_SERVER_IP 换成服务器公网 IP，
+        # 并运行 bash scripts/setup_coturn.sh（账号默认 username/password）。
+        # 若浏览器与服务器在同一内网/本机，可不启用（走 STUN/直连）。
+        # turn_config:
+        #   turn_provider: "turn_server"
+        #   urls: ["turn:YOUR_SERVER_IP:3478?transport=tcp", "turns:YOUR_SERVER_IP:5349"]
+        #   username: "username"
+        #   credential: "password"
+      InterruptHandler:
+        module: logic/interrupt/interrupt_handler
+      SileroVad:
+        module: vad/silerovad/vad_handler_silero
+        speaking_threshold: 0.5
+        start_delay: 2048
+        end_delay: 5000
+        buffer_look_back: 5000
+        speech_padding: 512
+        continuous_listen: true
+      # ---- Direct voice mode: ASR / LLM / TTS are DISABLED on purpose. ----
+      # The chat-loop voice path is VAD -> FlashHead. Text still works via
+      # /api/speak (edge-tts inside api_server, independent of these handlers).
+      SenseVoice:
+        enabled: False
+        module: asr/sensevoice/asr_handler_sensevoice
+        model_name: "iic/SenseVoiceSmall"
+      Edge_TTS:
+        enabled: False
+        module: tts/edgetts/tts_handler_edgetts
+        voice: "zh-CN-XiaoxiaoNeural"
+      LLMOpenAICompatible:
+        enabled: False
+        module: llm/openai_compatible/llm_handler_openai_compatible
+        model_name: "mock"
+        enable_video_input: False
+        history_length: 20
+        system_prompt: "请你扮演一个 AI 助手，用简短的两三句对话来回答用户的问题，并在对话内容中加入合适的标点符号，不需要讨论标点符号相关的内容"
+        api_url: "http://127.0.0.1:11434/v1"
+        api_key: "mock"
+      FlashHead:
+        module: avatar/flashhead/avatar_handler_flashhead
+        ckpt_dir: "models/SoulX-FlashHead-1_3B"
+        wav2vec_dir: "models/wav2vec2-base-960h"
+        model_type: "lite"
+        cond_image_path: "resource/avatar/flashhead/girl.png"
+        fps: 25
+        base_seed: 42
+        use_face_crop: false
+        paste_back: false
+        idle_noise_amplitude: 0.0
+        direct_voice_input: true

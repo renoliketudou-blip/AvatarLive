@@ -64,4 +64,11 @@ class FlashHeadConfig(HandlerBaseConfigModel, BaseModel):
                     "Set to 0.0 to use pure silence.",
     )
     debug: bool = Field(default=False, description="Enable debug logging.")
+    direct_voice_input: bool = Field(
+        default=False,
+        description="Bypass ASR/LLM/TTS: consume HUMAN_AUDIO (16kHz mic/VAD speech "
+                    "segments) directly and drive the avatar with the operator's raw "
+                    "voice. Original audio is upsampled to output_audio_sample_rate "
+                    "for client playback.",
+    )
     # concurrent_limit is inherited from HandlerBaseConfigModel and auto-injected by ChatEngine

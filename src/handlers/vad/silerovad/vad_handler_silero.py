@@ -39,6 +39,14 @@ class SileroVADConfigModel(HandlerBaseConfigModel, BaseModel):
     # POST_END 能量检测阈值（dB），作为 VAD 模型的备份检测
     # 当音频能量超过此阈值时，即使 VAD 模型没检测到语音，也认为有语音活动
     post_end_energy_threshold: float = Field(default=-35, description="POST_END 期间能量检测阈值（dB），高于此值认为有语音")
+    continuous_listen: bool = Field(
+        default=False,
+        description="Continuous listening (direct-voice mode): keep VAD input "
+                    "enabled regardless of CLIENT_PLAYBACK lifecycle signals and "
+                    "after each speech end. Used with FlashHead.direct_voice_input "
+                    "so the operator can speak back-to-back without waiting for "
+                    "avatar playback to finish.",
+    )
 
 
 class SpeakingStatus(enum.Enum):
@@ -499,9 +507,11 @@ class HandlerAudioVAD(HandlerBase, ABC):
             if post_end_timeout:
                 logger.info("POST_END timeout, clearing reconnection buffers")
             
-            if human_speech_end:
+            if human_speech_end and not context.config.continuous_listen:
                 # In simplex mode, VAD self-disables after speech end.
                 # It will be re-enabled by CLIENT_PLAYBACK STREAM_END when avatar finishes playing.
+                # In continuous_listen (direct-voice) mode, keep listening so the
+                # operator can speak back-to-back.
                 context.input_enabled = False
             if back_to_end or (human_speech_end and not entering_post_end):
                 context.reset()
@@ -597,6 +607,10 @@ class HandlerAudioVAD(HandlerBase, ABC):
 
         is_playback_stream = (signal.related_stream is not None
                               and signal.related_stream.data_type == ChatDataType.CLIENT_PLAYBACK)
+        if context.config.continuous_listen and is_playback_stream:
+            # Continuous listening (direct-voice mode): ignore CLIENT_PLAYBACK
+            # pause/resume so the operator can speak freely and back-to-back.
+            return
         if is_playback_stream and signal.type in (ChatSignalType.STREAM_END, ChatSignalType.STREAM_CANCEL):
             context.input_enabled = True
             logger.debug(f"VAD input enabled by CLIENT_PLAYBACK {signal.type.value} from {signal.source_name}")
