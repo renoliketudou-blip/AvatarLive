@@ -85,6 +85,14 @@
   </div>
 
   <div class="card">
+    <label class="label">让数字人说话（上传语音）</label>
+    <label class="file-btn" for="file-audio">🎵 选择语音文件（WAV / MP3）</label>
+    <input type="file" id="file-audio" accept="audio/*,.wav,.mp3" />
+    <span id="file-audio-name"></span>
+    <div class="status" id="audioStatus"></div>
+  </div>
+
+  <div class="card">
     <label class="label">换形象（上传照片）</label>
     <label class="file-btn" for="file">📷 选择图片作为数字人</label>
     <input type="file" id="file" accept="image/*" />
@@ -104,6 +112,7 @@
   const btnConnect = $("btnConnect"), btnVoice = $("btnVoice");
   const btnSpeak = $("btnSpeak"), txt = $("txt");
   const fileEl = $("file"), fileName = $("file-name"), avatarStatus = $("avatarStatus");
+  const fileAudioEl = $("file-audio"), fileAudioName = $("file-audio-name"), audioStatus = $("audioStatus");
 
   let pc = null, dc = null, micStream = null, micEnabled = true, connected = false;
   let rtcConfig = null;
@@ -245,6 +254,37 @@
     } catch (e) {
       avatarStatus.className = "status err";
       avatarStatus.textContent = "上传失败: " + e.message;
+    }
+  };
+
+  fileAudioEl.onchange = async () => {
+    const f = fileAudioEl.files[0];
+    if (!f) return;
+    fileAudioName.textContent = f.name;
+    audioStatus.className = "status";
+    audioStatus.textContent = "上传中…（广播到已连接的会话）";
+    const contentType = f.type || "audio/wav";
+    try {
+      const res = await fetch("/api/speak", {
+        method: "POST",
+        headers: { "Content-Type": contentType },
+        body: f,
+      });
+      const j = await res.json();
+      if (j.status === "ok") {
+        audioStatus.className = "status ok";
+        const sessions = j.broadcast_to_sessions;
+        const hint = sessions > 0
+          ? `✅ 数字人已用这段语音开口（${j.source}，广播到 ${sessions} 个会话）`
+          : "✅ 接口已接收（当前无已连接会话，数字人不会动）。请先点「连接数字人」再上传";
+        audioStatus.textContent = hint;
+      } else {
+        audioStatus.className = "status err";
+        audioStatus.textContent = "❌ " + (j.error || "上传失败");
+      }
+    } catch (e) {
+      audioStatus.className = "status err";
+      audioStatus.textContent = "上传失败: " + e.message;
     }
   };
 
