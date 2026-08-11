@@ -66,14 +66,6 @@ bash scripts/start_avatar_live.sh            # mock LLM + 服务，端口 8282
 
 > 默认形象是官方示例 `girl.png`。用 `POST /api/avatar` 上传你自己的照片即可换形象（正脸、睁眼、嘴闭合的照片效果最好，见 [docs/OPTIMIZATIONS.md](docs/OPTIMIZATIONS.md)）。
 
-### 启动（直通语音模式：你的真声直接驱动数字人）
-```bash
-bash scripts/start_avatar_live.sh config/chat_flashhead_direct_voice.yaml
-```
-说话时**跳过 ASR 识别 / LLM / TTS 合成**：麦克风语音经 VAD 切段后直接驱动 FlashHead，
-数字人用**你自己的声音**、口型实时同步（适合直播/语音直通场景）。
-文字输入不受影响（`/api/speak` 内建 edge-tts）。
-
 ### 启动（全闭环对话模式，需 LLM API）
 ```bash
 # 编辑 config/chat_with_openai_compatible_bailian_cosyvoice_flashhead.yaml，
@@ -121,7 +113,7 @@ curl -sk -X POST https://<IP>:8282/api/speak \
 ## 📁 目录结构
 
 ```
-config/                          # 运行配置（edge-tts 零 key 默认 / 直通语音 / bailian 全闭环）
+config/                          # 运行配置（edge-tts 零 key 默认 / bailian 全闭环）
 resource/avatar/flashhead/       # 默认形象 girl.png（换成你自己的照片）
 src/handlers/avatar/flashhead/   # FlashHead 流式引擎（processor + handler + vendored 推理）
 src/service/api_server.py        # HTTP API（形象上传 + 文字/音频广播）
