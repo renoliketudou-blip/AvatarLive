@@ -166,7 +166,7 @@
     pc.ontrack = (e) => {
       if (e.track.kind === "video") {
         video.srcObject = e.streams[0];
-        video.muted = true; // 自播放策略：视频先静音，音频在交互后启用
+        video.muted = false; // 连接按钮点击已满足自动播放策略，直接开声音
         setVideoMsg("");
       }
     };
@@ -248,10 +248,13 @@
     }
   };
 
-  // 用户手势后启用声音
+  // 兜底：任何交互都确保有声音
   document.addEventListener("click", function enableSound() {
     if (video.srcObject) video.muted = false;
-  }, { once: true });
+  });
+  document.addEventListener("keydown", function enableSound() {
+    if (video.srcObject) video.muted = false;
+  });
 
   loadInitConfig();
 })();
