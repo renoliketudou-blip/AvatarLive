@@ -1,143 +1,143 @@
-<h1 style='text-align: center; margin-bottom: 1rem'> Open Avatar Chat </h1>
+<h1 align="center">AvatarLive</h1>
 
 <p align="center">
-<strong>中文 | <a href="readme_en.md">English</a></strong>
+<strong>实时数字人直播框架 —— 基于 SoulX-FlashHead 扩散模型，WebRTC 低延迟说话视频。</strong>
 </p>
 
 <p align="center">
-<strong>模块化的交互数字人对话实现。</strong>
+上传一张照片 → 输入文字 / 说话 / 上传音频 → 数字人实时开口说话
 </p>
 
-<p align="center" style="display: flex; flex-direction: row; justify-content: center">
- 🤗 <a href="https://huggingface.co/spaces/HumanAIGC-Engineering-Team/open-avatar-chat">Demo</a>&nbsp&nbsp|&nbsp&nbsp<img alt="Static Badge" style="height: 10px;" src="./assets/images/modelscope_logo.png"> <a href="https://www.modelscope.cn/studios/HumanAIGC-Engineering/open-avatar-chat">Demo</a>&nbsp&nbsp|&nbsp&nbsp💬 <a href="https://github.com/HumanAIGC-Engineering/OpenAvatarChat/blob/main/assets/images/OpenAvatarChat.png">WeChat (微信)</a>&nbsp&nbsp|&nbsp&nbsp📖 <a href="https://humanaigc-engineering.github.io/OpenAvatarChat/">文档</a>
-</p>
+---
 
-## 💡 核心亮点
+## ✨ 核心特性
 
-- **多模态交互支持**：支持文本、语音、视频等多种交互方式，提供自然流畅的人机对话体验
-- **模块化架构设计**：采用高度模块化设计，可灵活替换 ASR、LLM、TTS、Avatar 等核心组件
-- **多样数字人形象**：支持 LiteAvatar、LAM、MuseTalk、FlashHead 等多种数字人技术
-- **低延迟优化**：通过 VAD 检测、语音缓冲、帧率控制等机制优化，平均响应时间仅 2.2 秒
+- **实时说话头**：SoulX-FlashHead Lite 扩散模型流式推理，25 FPS 视频输出，推理 ~2× 实时（单卡即可跑）
+- **三种驱动接口**：
+  - **文字**：WebUI 文本框 / `POST /api/speak {"text": "..."}`
+  - **语音**：WebRTC 麦克风实时对话 / `POST /api/speak`（WAV/MP3 字节）
+  - **形象**：`POST /api/avatar` 上传图片 → **热换数字人形象**（所有已连会话即时生效）
+- **零 API Key 开箱**：默认链路 `mock LLM（回声）+ edge-tts + FlashHead`，无需任何外部 key；支持随时换成真实 LLM（任意 OpenAI 兼容端点）
+- **双工打断**：对话可随时打断，自动复位口型与待机
+- **自包含仓库**：FlashHead 推理引擎、SileroVAD、WebUI 已 vendored，**无 submodule 依赖**，clone 即用
 
-## 📢 最新动态
+## 🏗️ 架构
 
-- [2026.04] ⭐️⭐️⭐️ 版本 0.6.0发布:
-  - 架构重构，前后端分离，前端仓库 [OpenAvatarChat-WebUI](https://github.com/HumanAIGC-Engineering/OpenAvatarChat-WebUI)
-  - 所有数字人均支持手动打断和双工打断模式
-  - 优化安装部署和模型下载流程，统一依赖管理和模型下载脚本
-  - 接入 [SoulX-FlashHead](https://github.com/Soul-AILab/SoulX-FlashHead) 数字人，基于扩散模型的实时流式说话头生成
-- [2025.08.19] ⭐️⭐️⭐️ 版本 0.5.1发布:
-  - LiteAvatar支持单机多session
-  - 增加对 Qwen-Omni多模态模型的支持
+AvatarLive 是 [OpenAvatarChat](https://github.com/HumanAIGC-Engineering/OpenAvatarChat)（v0.6.0, commit `8b7b3b4`）的二次开发 fork，聚焦 FlashHead 专精：
 
-> 📋 [完整更新日志](https://humanaigc-engineering.github.io/OpenAvatarChat/releases/release-notes)
+```
+浏览器 / WebRTC ──┬── 麦克风 ──▶ SenseVoice ASR ──▶ mock/真实 LLM ──┐
+                  ├── 摄像头 ──┐                                    ├─▶ edge-tts ──▶ FlashHead 流式引擎 ──▶ 512×512 视频 + 音频
+                  └── 文本框 ──┴──▶ LLM 文字通路 ───────────────────┘                        ▲
+                                                                                           │
+HTTP API ──▶ /api/avatar（图片上传热换形象）│ /api/speak（文字/音频广播）─────────────────┘
+```
 
-## Demo
-
-
-### 视频
-<table>
-  <tr>
-    <td align="center">
-      <h3>LiteAvatar</h3>
-      <video controls src="https://github.com/user-attachments/assets/e2861200-84b0-4c7a-93f0-f46268a0878b"></video>
-    </td>
-    <td align="center">
-      <h3>LAM</h3>
-      <video controls src="https://github.com/user-attachments/assets/a72a8c33-39dd-4656-a4a9-b76c5487c711"></video>
-    </td>
-  </tr>
-</table>
-
-## 组件依赖
-
-| 类型       | 开源项目                                |Github地址|模型地址|
-|----------|-------------------------------------|---|---|
-| RTC      | HumanAIGC-Engineering/gradio-webrtc |[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/HumanAIGC-Engineering/gradio-webrtc)||
-| WebUI      | HumanAIGC-Engineering/OpenAvatarChat-WebUI |[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/HumanAIGC-Engineering/OpenAvatarChat-WebUI)||
-| VAD      | snakers4/silero-vad                 |[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/snakers4/silero-vad)||
-| Avatar   | HumanAIGC/lite-avatar               |[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/HumanAIGC/lite-avatar)||
-| TTS      | FunAudioLLM/CosyVoice               |[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/FunAudioLLM/CosyVoice)||
-|Avatar|aigc3d/LAM_Audio2Expression|[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/aigc3d/LAM_Audio2Expression)|[🤗](https://huggingface.co/3DAIGC/LAM_audio2exp)|
-||facebook/wav2vec2-base-960h||[🤗](https://huggingface.co/facebook/wav2vec2-base-960h)&nbsp;&nbsp;[<img src="./assets/images/modelscope_logo.png" width="20px"></img>](https://modelscope.cn/models/AI-ModelScope/wav2vec2-base-960h)|
-|Avatar|TMElyralab/MuseTalk|[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/TMElyralab/MuseTalk)||
-|Avatar|Soul-AILab/SoulX-FlashHead|[<img src="https://img.shields.io/badge/github-white?logo=github&logoColor=black"/>](https://github.com/Soul-AILab/SoulX-FlashHead)|[🤗](https://huggingface.co/Soul-AILab/SoulX-FlashHead-1_3B)|
-||||||
+- **FlashHead 引擎**（`src/handlers/avatar/flashhead/`）—— 现成的实时流式引擎：滑动音频窗口、25 FPS 帧采集、静音待机微动、音画同步、双工打断。推理源码已 vendored（Apache 2.0，见 `NOTICE`）。
+- **WebRTC 传输** —— 继承 OAC 的 gradio-webrtc + coturn（TURN）基础设施，公网 NAT 穿透开箱。
 
 ## 🚀 快速开始
 
+### 环境要求
+- Linux + NVIDIA GPU（≥16GB 显存，Lite 模型实测 ~6.2GB）
+- Python 3.10 / 3.11、CUDA 12.x、PyTorch 2.x
+
+### 安装
 ```bash
-# 克隆项目
-git clone https://github.com/HumanAIGC-Engineering/OpenAvatarChat.git
-cd OpenAvatarChat
-git submodule update --init --recursive --depth 1
+git clone git@github.com:renoliketudou-blip/AvatarLive.git
+cd AvatarLive
 
-# 安装依赖（以 LiteAvatar + 百炼 API 为例）
-uv run install.py --config config/chat_with_openai_compatible_bailian_cosyvoice.yaml
+# 1) 创建虚拟环境并安装依赖（跳过 flash-attn/xformers/mediapipe 编译，走 SDPA 回退）
+uv venv --python 3.11 && source .venv/bin/activate
+uv pip install -e .   # 或 uv run install.py --config config/chat_flashhead_edge_tts.yaml
 
-# 下载模型
-uv run scripts/download_models.py --handler liteavatar
+# 2) 下载模型（FlashHead Lite ~13GB + wav2vec2 + SenseVoice）
+uv run scripts/download_models.py --handler flashhead
 
-# 启动
-uv run src/demo.py --config config/chat_with_openai_compatible_bailian_cosyvoice.yaml
+# 3) 生成自签 HTTPS 证书（浏览器首次访问需信任）
+bash scripts/create_ssl_certs.sh
 ```
 
-> 📖 详细步骤请参阅[快速开始文档](https://humanaigc-engineering.github.io/OpenAvatarChat/getting-started/)
+### 启动（零 Key 演示模式）
+```bash
+bash scripts/start_avatar_live.sh            # mock LLM + 服务，端口 8282
+```
+浏览器打开 `https://<服务器IP>:8282/` → 文本/语音/上传形象，全部可用。
 
-## 预置模式
+> 默认形象是官方示例 `girl.png`。用 `POST /api/avatar` 上传你自己的照片即可换形象（正脸、睁眼、嘴闭合的照片效果最好，见 [docs/OPTIMIZATIONS.md](docs/OPTIMIZATIONS.md)）。
 
-| CONFIG名称 | ASR | LLM | TTS | AVATAR |
-|----------------------------------------------------|-----|:---------:|:---------:|------------|
-| chat_with_lam.yaml | SenseVoice | API | API | LAM |
-| chat_with_qwen_omni.yaml | Qwen-Omni | Qwen-Omni | Qwen-Omni | lite-avatar |
-| chat_with_openai_compatible_bailian_cosyvoice.yaml | SenseVoice | API | API | lite-avatar |
-| chat_with_openai_compatible_bailian_cosyvoice_flashhead.yaml | SenseVoice | API | API | FlashHead |
-| chat_with_openai_compatible_bailian_cosyvoice_flashhead_duplex.yaml | SenseVoice | API | API | FlashHead (双工) |
-| chat_with_openai_compatible_bailian_cosyvoice_flashhead_duplex_agent.yaml | SenseVoice | **Agent** | API | FlashHead (双工+Agent) Beta |
+### 启动（全闭环对话模式，需 LLM API）
+```bash
+# 编辑 config/chat_with_openai_compatible_bailian_cosyvoice_flashhead.yaml，
+# 填入百炼/DeepSeek/任意 OpenAI 兼容 api_key 与 api_url
+export DASHSCOPE_API_KEY="sk-xxx"
+uv run src/demo.py --config config/chat_with_openai_compatible_bailian_cosyvoice_flashhead.yaml
+```
 
-> 📖 [查看全部预置模式](https://humanaigc-engineering.github.io/OpenAvatarChat/reference/preset-modes)
+## 🌐 HTTP API 参考
 
-## 🧪 Beta 功能
+| 方法 | 路径 | 请求 | 说明 |
+|---|---|---|---|
+| POST | `/api/avatar` | multipart `file=<图片>` | 上传图片热换数字人形象（立即生效） |
+| POST | `/api/speak` | JSON `{"text": "...", "voice": "zh-CN-XiaoxiaoNeural"}` | 文字 → edge-tts → 数字人说话（广播到所有已连会话） |
+| POST | `/api/speak` | 原始音频字节（WAV 16-bit PCM / MP3） | 音频 → 数字人说话 |
+| POST | `/webrtc/offer` | WebRTC SDP offer | WebRTC 建连（浏览器/客户端） |
 
-### Chat Agent 模式（OpenClaw 集成）
+```bash
+# 换形象
+curl -sk -X POST https://<IP>:8282/api/avatar -F "file=@my_face.jpg"
 
-> [!WARNING]
-> 此功能目前处于 **Beta** 阶段，API 和配置格式可能随时变化。
+# 让数字人说一句话
+curl -sk -X POST https://<IP>:8282/api/speak \
+  -H "Content-Type: application/json" \
+  -d '{"text": "大家好，我是你的数字人助理"}'
 
-Chat Agent 模式使用多轮工具调用 Agent 替代传统 LLM Handler，为数字人提供：
+# 用一段音频驱动
+curl -sk -X POST https://<IP>:8282/api/speak \
+  -H "Content-Type: audio/mpeg" --data-binary @speech.mp3
+```
 
-- **工具调用**：多轮调用工具（获取时间、系统信息等）
-- **人格与长期记忆**：通过 OpenClaw 的 Agent Profile 赋予数字人持久人格
-- **对话上下文压缩**：自动压缩过长的对话历史
-- **后台任务协作**：通过 OpenClaw 在后台执行复杂任务
-- **视觉感知**：结合 PerceptionAgent 处理摄像头输入
+## 🔌 端口与公网访问
 
-> 📖 [查看完整 Chat Agent 文档](https://humanaigc-engineering.github.io/OpenAvatarChat/beta/chat-agent)
+- **HTTPS WebUI / API**：`8282`（自签证书）
+- **TURN**：coturn，`3478`(TCP)/`5349`(TLS)。公网浏览器访问必须配 TURN（尤其纯 TCP 网络），在 `config/*.yaml` 的 `RtcClient.turn_config` 填写你的服务器地址与账号，并运行 `bash scripts/setup_coturn.sh`。
+- WebRTC 媒体走 TURN 中继端口范围 `49152-65535`（见 `coturn-data/turnserver.conf`）。
 
-## 社区
+## 📋 已知限制与调优
 
-* 微信群
+- **口型幅度偏保守**：FlashHead 是扩散模型，动态幅度天然低于真实音视频对口型；待机时嘴保持闭合（参考图决定待机基线，`idle_noise_amplitude: 0.0`）
+- **首帧延迟**：冷启动加载模型约 10-15s；触发→开口约 1s
+- **TTS 网络依赖**：edge-tts 走微软在线服务（合成 2-6s）；如需本地化可换 CosyVoice（见规划）
+- 完整调优心得见 **[docs/OPTIMIZATIONS.md](docs/OPTIMIZATIONS.md)**
 
-<img alt="community_wechat.png" height="200" src="https://github.com/HumanAIGC-Engineering/OpenAvatarChat/blob/main/assets/images/OpenAvatarChat.png" width="200"/>
-
-* 官方视频教程：[Bilibili](https://www.bilibili.com/video/BV1sv8QzLEC2)
-* 🚨 [常见问题](https://humanaigc-engineering.github.io/OpenAvatarChat/community/faq)
-
-
-## Star历史
-
-![](https://api.star-history.com/svg?repos=HumanAIGC-Engineering/OpenAvatarChat&type=Date)
-
-## 引用
-
-如果您在您的研究/项目中感到 OpenAvatarChat 为您提供了帮助，期待您能给一个 Star⭐和引用✏️
+## 📁 目录结构
 
 ```
-@software{avatarchat2025,
-  author = {Gang Cheng, Tao Chen, Feng Wang, Binchao Huang, Hui Xu, Guanqiao He, Yi Lu, Shengyin Tan},
-  title = {OpenAvatarChat},
-  year = {2025},
-  publisher = {GitHub},
-  url = {https://github.com/HumanAIGC-Engineering/OpenAvatarChat}
-}
+config/                          # 运行配置（edge-tts 零 key 默认 / bailian 全闭环）
+resource/avatar/flashhead/       # 默认形象 girl.png（换成你自己的照片）
+src/handlers/avatar/flashhead/   # FlashHead 流式引擎（processor + handler + vendored 推理）
+src/service/api_server.py        # HTTP API（形象上传 + 文字/音频广播）
+scripts/                         # 启动 / 自测 / 模型下载 / 证书
+docs/                            # 部署与调优文档
+NOTICE                           # 上游项目与 vendored 组件署名
 ```
+
+## 🧪 自测
+
+```bash
+# 1) 模块导入自检
+uv run python scripts/selftest_import.py
+
+# 2) WebRTC 连通自测（服务需已启动，本机跑）
+uv run python scripts/test_webrtc_client.py
+uv run python scripts/test_webrtc_speech.py /path/to/speech.wav
+```
+
+## ⚖️ 致谢与许可
+
+本项目 fork 自 [OpenAvatarChat](https://github.com/HumanAIGC-Engineering/OpenAvatarChat)（Apache 2.0, commit `8b7b3b4`），并 vendored 了以下开源组件（Apache 2.0 / MIT），完整署名见 **[NOTICE](NOTICE)**：
+- [Soul-AILab/SoulX-FlashHead](https://github.com/Soul-AILab/SoulX-FlashHead)（推理引擎）
+- [snakers4/silero-vad](https://github.com/snakers4/silero-vad)（VAD）
+- [HumanAIGC-Engineering/OpenAvatarChat-WebUI](https://github.com/HumanAIGC-Engineering/OpenAvatarChat-WebUI)（WebUI）
+
+[English](readme_en.md) | 仓库 LICENSE：Apache 2.0
