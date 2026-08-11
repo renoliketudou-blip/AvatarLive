@@ -3,6 +3,19 @@
 > ⚠️ 本文描述构建与上传流程，**镜像上传按用户约定在后续阶段执行**（M7 之后）。
 > 本仓库已包含可构建的 `Dockerfile` 与 `docker-compose.yml`。
 
+## 0. pod 快照直传（最快路径，已就绪）
+
+**2026-08-11 pod 已镜像化清理**：`/workspace/` 下唯一目录 `/workspace/avatar-live` 已自包含
+（16G = 代码 + `models/{SoulX-FlashHead-1_3B, wav2vec2-base-960h, iic/SenseVoiceSmall}` + `ssl_certs/` 真实文件），
+无测试残留、无真人照片、无旧工作树（OAC-v06/OpenAvatarChat 已删），config 已复位公开默认。
+
+若走「pod 快照→社区镜像」路径：在平台控制台将当前 pod 发布为社区镜像即可（见 §4 元信息）。
+实例从镜像启动后，模型已在 `/workspace/avatar-live/models`，入口：
+`bash /workspace/avatar-live/scripts/start_avatar_live.sh`（HTTPS 8282）。
+
+> ⚠️ 公共镜像**必须**用公开默认 config（turn_config 注释）。用户拉取后按 docs/DEPLOYMENT.md
+> 把 `turn_config` 改成实例自己的公网 IP。
+
 ## 1. 本地构建（验证通过）
 
 ```bash
