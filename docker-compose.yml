@@ -10,28 +10,24 @@ services:
     volumes:
       - ./coturn-data/turnserver.conf:/etc/coturn/turnserver.conf
       - ./ssl_certs/localhost.crt:/etc/turn_cert.pem
-      - ./ssl_certs/localhost.crt:/etc/turn_key.pem
+      - ./ssl_certs/localhost.key:/etc/turn_key.pem
     network_mode: host
     restart: unless-stopped
 
-  open-avatar-chat:
-    image: open-avatar-chat:latest
-    container_name: open-avatar-chat
+  avatarlive:
+    image: avatarlive:latest
+    container_name: avatarlive
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
       # - UV_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
     command: >
-      --config=/root/open-avatar-chat/config/chat_with_openai_compatible_bailian_cosyvoice.yaml
+      --config=/app/config/chat_flashhead_edge_tts.yaml
     volumes:
-      - ./build:/root/open-avatar-chat/build
-      - ./models:/root/open-avatar-chat/models
-      - ./ssl_certs:/root/open-avatar-chat/ssl_certs
-      - ./config:/root/open-avatar-chat/config
-      - ./.env:/root/open-avatar-chat/.env
-      - ./models/musetalk/s3fd-619a316812/:/root/.cache/torch/hub/checkpoints/
-      - ./exp:/root/open-avatar-chat/exp
-      - ./resource:/root/open-avatar-chat/resource
+      - ./models:/app/models
+      - ./ssl_certs:/app/ssl_certs
+      - ./config:/app/config
+      - ./resource:/app/resource
     ports:
       - "8282:8282"
     networks:
@@ -53,4 +49,3 @@ services:
 networks:
   nat_network:
     driver: bridge
-    

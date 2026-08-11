@@ -1,10 +1,10 @@
 FROM swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 # Re-declare ARGs after FROM to make them available in subsequent layers
-ARG WORK_DIR=/root/open-avatar-chat
+ARG WORK_DIR=/app
 
 # Image metadata with dynamic version
-LABEL authors="HumanAIGC-Engineering"
+LABEL authors="AvatarLive"
 
 
 # Environment variables for optimized build and runtime
@@ -130,5 +130,6 @@ ENV APP_VERSION=${BUILD_VERSION} \
 # =============================================================================
 # Container Entry Point
 # =============================================================================
-# Use uv to run the application with proper virtual environment
-ENTRYPOINT ["uv", "run", "--no-sync", "src/demo.py"]
+# Zero-API-key default: mock LLM (echo) + edge-tts + FlashHead.
+# For a full closed-loop (LLM API) pass a different --config via `docker run`.
+ENTRYPOINT ["uv", "run", "--no-sync", "src/demo.py", "--config", "config/chat_flashhead_edge_tts.yaml"]
