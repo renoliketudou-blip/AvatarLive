@@ -667,6 +667,17 @@ class FlashHeadProcessor:
         self._audio_deque = deque(init_audio.tolist(), maxlen=cached_audio_length)
         self._latent_motion_frames = self._initial_latent_1slice.clone()
 
+    def update_base_image(self, new_ref_img_latent: torch.Tensor):
+        """Hot-swap the avatar reference image for this processor.
+
+        Called after the shared pipeline's reference image has been re-encoded
+        (see HandlerAvatarFlashHead.update_avatar_image).  The processor resets
+        its per-session motion-frame latent so the *new* face takes effect from
+        the next chunk onward.
+        """
+        self._initial_latent_1slice = new_ref_img_latent[:, :1].clone()
+        self._latent_motion_frames = self._initial_latent_1slice.clone()
+
     def stop(self):
         """Cleanup when session ends."""
         self._stop_event.set()

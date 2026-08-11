@@ -167,6 +167,11 @@ class HandlerAvatarFlashHead(HandlerBase):
         self._orig_cond_image_path: Optional[str] = None
         self._paste_back_bg: Optional[np.ndarray] = None
         self._paste_back_box: Optional[tuple] = None
+        # State needed for runtime avatar hot-swap / server-initiated speech
+        self._algo_path: Optional[str] = None
+        self._base_seed: int = 42
+        self._live_processors: Dict[str, "FlashHeadProcessor"] = {}
+        self._proc_lock = threading.Lock()
 
     def get_handler_info(self) -> HandlerBaseInfo:
         return HandlerBaseInfo(
@@ -211,6 +216,8 @@ class HandlerAvatarFlashHead(HandlerBase):
 
         # --- Add SoulX-FlashHead to Python path ---
         flashhead_algo_path = os.path.join(self.handler_root, "SoulX-FlashHead")
+        self._algo_path = flashhead_algo_path
+        self._base_seed = handler_config.base_seed
         if flashhead_algo_path not in sys.path:
             sys.path.insert(0, flashhead_algo_path)
             logger.info(f"Added FlashHead algo path to sys.path: {flashhead_algo_path}")
@@ -341,6 +348,9 @@ class HandlerAvatarFlashHead(HandlerBase):
 
         callbacks = context._build_callbacks()
         processor.set_callbacks(callbacks)
+
+        with self._proc_lock:
+            self._live_processors[session_context.session_info.session_id] = processor
 
         logger.info(f"FlashHead context created for session {session_context.session_info.session_id}")
         return context
@@ -481,11 +491,89 @@ class HandlerAvatarFlashHead(HandlerBase):
             if context.processor is not None:
                 context.processor.stop()
                 context.processor.set_callbacks(None)
+            with self._proc_lock:
+                self._live_processors.pop(context.session_id, None)
             context.clear()
             logger.info(f"FlashHead: Context destroyed for session {context.session_id}")
 
+    def update_avatar_image(self, image_path: str) -> str:
+        """Hot-swap the digital human's reference image for ALL live sessions.
+
+        Re-encodes the new reference image through the shared FlashHead pipeline
+        (VAE encode via get_base_data) and refreshes every live processor's
+        motion-frame latent, so the next generated frame uses the new face.
+
+        Args:
+            image_path: absolute or project-relative path to the new portrait.
+
+        Returns:
+            The absolute path that was applied.
+        """
+        from flash_head.inference import get_base_data
+
+        if self.pipeline is None or self._algo_path is None:
+            raise RuntimeError("FlashHead pipeline not loaded yet")
+
+        image_path = os.path.abspath(image_path)
+        if not os.path.isfile(image_path):
+            raise FileNotFoundError(f"avatar image not found: {image_path}")
+
+        original_cwd = os.getcwd()
+        os.chdir(self._algo_path)
+        try:
+            get_base_data(
+                self.pipeline,
+                cond_image_path_or_dir=image_path,
+                base_seed=self._base_seed,
+                use_face_crop=False,
+            )
+        finally:
+            os.chdir(original_cwd)
+
+        new_ref_latent = self.pipeline.ref_img_latent
+        with self._proc_lock:
+            procs = list(self._live_processors.values())
+        for proc in procs:
+            try:
+                proc.update_base_image(new_ref_latent)
+            except Exception as e:
+                logger.warning(f"FlashHead: failed to update processor base image: {e}")
+
+        logger.info(f"FlashHead: avatar hot-swapped to {image_path} "
+                    f"(refreshed {len(procs)} live processors)")
+        return image_path
+
+    def broadcast_speak(self, audio_16k: np.ndarray, original_audio: np.ndarray,
+                        speech_id: str) -> int:
+        """Feed speech audio into every live session so all clients see/hear it.
+
+        Args:
+            audio_16k: float32 audio at 16kHz (FlashHead inference input).
+            original_audio: float32 audio at output sample rate (client playback).
+            speech_id: unique id for this speech event.
+
+        Returns:
+            Number of live processors the audio was fed to.
+        """
+        with self._proc_lock:
+            procs = list(self._live_processors.values())
+        count = 0
+        for i, proc in enumerate(procs):
+            try:
+                proc.add_audio(
+                    audio_16k, original_audio,
+                    speech_id=f"{speech_id}:{i}",
+                    end_of_speech=True,
+                )
+                count += 1
+            except Exception as e:
+                logger.warning(f"FlashHead: broadcast add_audio failed: {e}")
+        return count
+
     def destroy(self):
         """Global cleanup."""
+        with self._proc_lock:
+            self._live_processors.clear()
         self.pipeline = None
         self.infer_params = None
         logger.info("FlashHead: Handler destroyed")

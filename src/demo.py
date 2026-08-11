@@ -91,6 +91,10 @@ def main():
     chat_engine = ChatEngine()
     chat_engine.initialize(engine_config, app=demo_app, ui=ui, parent_block=parent_block)
 
+    # AvatarLive HTTP API: avatar image upload + server-initiated speech
+    from service.api_server import register_api
+    register_api(demo_app, chat_engine)
+
     ssl_context = create_ssl_context(args, service_config)
 
     uvicorn_config = uvicorn.Config(demo_app, host=service_config.host, port=service_config.port, **ssl_context)
