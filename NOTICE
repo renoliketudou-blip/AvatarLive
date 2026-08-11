@@ -1,0 +1,53 @@
+AvatarLive — NOTICE
+
+This project is a fork of, and builds upon, the following open-source projects.
+All source is used in accordance with their respective licenses.
+
+------------------------------------------------------------------------
+1. OpenAvatarChat (fork base)
+   https://github.com/HumanAIGC-Engineering/OpenAvatarChat
+   License: Apache License 2.0
+   Pinned commit: 8b7b3b4 (v0.6.0)
+   This repository forks OpenAvatarChat and specializes it for
+   SoulX-FlashHead real-time WebRTC avatars. The chat engine, handler
+   framework, RTC transport, and WebUI are derived from OpenAvatarChat.
+
+2. SoulX-FlashHead (vendored inference engine)
+   https://github.com/Soul-AILab/SoulX-FlashHead
+   License: Apache License 2.0
+   Vendored commit: c2b0b0f (flash_head/ package byte-identical; the
+   upstream commit is c2b0b0f, matched by 9bc03de for flash_head files)
+   Location: src/handlers/avatar/flashhead/SoulX-FlashHead/
+   Local modifications:
+     - flash_head/configs/infer_params.yaml: sample_shift tuned 5 -> 8
+       for more stable eye motion.
+     - flash_head/utils/cpu_face_handler.py: mediapipe import made lazy
+       so use_face_crop=false works without mediapipe installed.
+   See scripts/refresh_flashhead.sh for how to refresh this vendored copy.
+
+3. silero-vad (vendored VAD)
+   https://github.com/snakers4/silero-vad
+   License: MIT
+   Vendored: the silero_vad python package (src/ + LICENSE) with the
+   pre-downloaded ONNX/JIT models under src/silero_vad/data/.
+
+4. OpenAvatarChat-WebUI (vendored built frontend)
+   https://github.com/HumanAIGC-Engineering/OpenAvatarChat-WebUI
+   License: Apache License 2.0
+   Vendored: the built dist/ directory (source of record for the build
+   lives upstream). Local modifications: mobile-first CSS layout fixes
+   applied to dist/assets/main.BHFa5GgP.css.
+
+5. Smart Turn EOU / pipecat-ai (model download only)
+   https://github.com/pipecat-ai/smart-turn
+   The duplex (end-of-utterance) mode downloads the smart-turn-v3 ONNX
+   model via scripts/download_smart_turn_weights.sh. The handler does
+   not vendor or import the upstream package at runtime.
+
+------------------------------------------------------------------------
+Upstream repository pinning & refresh scripts:
+  - scripts/refresh_flashhead.sh — refresh the vendored flash_head package
+  - README documents the exact pinned commits above.
+
+Any files not listed above originate from the AvatarLive project itself
+and are licensed under the repository LICENSE (Apache License 2.0).
