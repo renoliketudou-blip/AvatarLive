@@ -15,7 +15,7 @@
 - **实时说话头**：SoulX-FlashHead Lite 扩散模型流式推理，25 FPS 视频输出，推理 ~2× 实时（单卡即可跑）
 - **三种驱动接口**：
   - **文字**：WebUI 文本框 / `POST /api/speak {"text": "..."}`
-  - **语音**：WebRTC 麦克风实时对话 / `POST /api/speak`（WAV/MP3 字节）
+  - **语音**：WebRTC 麦克风实时对话 / `POST /api/play`（WAV/MP3 字节，原声对口型）
   - **形象**：`POST /api/avatar` 上传图片 → **热换数字人形象**（所有已连会话即时生效）
 - **零 API Key 开箱**：默认链路 `mock LLM（回声）+ edge-tts + FlashHead`，无需任何外部 key；支持随时换成真实 LLM（任意 OpenAI 兼容端点）
 - **双工打断**：对话可随时打断，自动复位口型与待机
@@ -30,7 +30,7 @@ AvatarLive 是 [OpenAvatarChat](https://github.com/HumanAIGC-Engineering/OpenAva
                   ├── 摄像头 ──┐                                    ├─▶ edge-tts ──▶ FlashHead 流式引擎 ──▶ 512×512 视频 + 音频
                   └── 文本框 ──┴──▶ LLM 文字通路 ───────────────────┘                        ▲
                                                                                            │
-HTTP API ──▶ /api/avatar（图片上传热换形象）│ /api/speak（文字/音频广播）─────────────────┘
+HTTP API ──▶ /api/avatar（图片上传热换形象）│ /api/speak（文字广播）/api/play（音频广播，原声对口型）─┘
 ```
 
 - **FlashHead 引擎**（`src/handlers/avatar/flashhead/`）—— 现成的实时流式引擎：滑动音频窗口、25 FPS 帧采集、静音待机微动、音画同步、双工打断。推理源码已 vendored（Apache 2.0，见 `NOTICE`）。
@@ -80,7 +80,7 @@ uv run src/demo.py --config config/chat_with_openai_compatible_bailian_cosyvoice
 |---|---|---|---|
 | POST | `/api/avatar` | multipart `file=<图片>` | 上传图片热换数字人形象（立即生效） |
 | POST | `/api/speak` | JSON `{"text": "...", "voice": "zh-CN-XiaoxiaoNeural"}` | 文字 → edge-tts → 数字人说话（广播到所有已连会话） |
-| POST | `/api/speak` | 原始音频字节（WAV 16-bit PCM / MP3） | 音频 → 数字人说话 |
+| POST | `/api/play` | 原始音频字节（WAV 16-bit PCM / MP3） | 音频 → 原声对口型 → 数字人说话（广播到所有已连会话）。旧别名 `/api/speak/audio` 仍兼容 |
 | POST | `/webrtc/offer` | WebRTC SDP offer | WebRTC 建连（浏览器/客户端） |
 
 ```bash
@@ -92,8 +92,8 @@ curl -sk -X POST https://<IP>:8282/api/speak \
   -H "Content-Type: application/json" \
   -d '{"text": "大家好，我是你的数字人助理"}'
 
-# 用一段音频驱动
-curl -sk -X POST https://<IP>:8282/api/speak \
+# 用一段音频驱动（原始音频字节直通，原声对口型）
+curl -sk -X POST https://<IP>:8282/api/play \
   -H "Content-Type: audio/mpeg" --data-binary @speech.mp3
 ```
 

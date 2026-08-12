@@ -10,7 +10,7 @@ Upload a photo → type / speak / upload audio → the digital human talks live.
 - **Real-time talking head**: FlashHead Lite streaming inference, 25 FPS output, ~2× realtime on a single GPU
 - **Three driving interfaces**:
   - **Text**: WebUI textbox / `POST /api/speak {"text": "..."}`
-  - **Voice**: WebRTC microphone (real-time dialogue) / `POST /api/speak` (WAV/MP3 bytes)
+  - **Voice**: WebRTC microphone (real-time dialogue) / `POST /api/play` (WAV/MP3 bytes, lip-synced original voice)
   - **Avatar**: `POST /api/avatar` image upload → **hot-swap the digital human's face** (applies to all live sessions instantly)
 - **Zero API keys**: default `mock LLM (echo) + edge-tts + FlashHead` works out of the box; swap in any OpenAI-compatible LLM later
 - **Self-contained repo**: FlashHead engine, SileroVAD and WebUI are vendored — **no submodules**, clone and run
@@ -37,8 +37,8 @@ curl -sk -X POST https://<IP>:8282/api/speak \
   -H "Content-Type: application/json" \
   -d '{"text": "Hello, I am your digital human assistant."}'
 
-# Drive with an audio file
-curl -sk -X POST https://<IP>:8282/api/speak \
+# Drive with an audio file (raw audio bytes, lip-synced original voice)
+curl -sk -X POST https://<IP>:8282/api/play \
   -H "Content-Type: audio/mpeg" --data-binary @speech.mp3
 ```
 

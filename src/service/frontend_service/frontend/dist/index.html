@@ -85,11 +85,11 @@
   </div>
 
   <div class="card">
-    <label class="label">让数字人说话（上传语音）</label>
+    <label class="label">让数字人说话（上传语音 · 原声配音）</label>
     <label class="file-btn" for="file-audio">🎵 选择语音文件（WAV / MP3）</label>
     <input type="file" id="file-audio" accept="audio/*,.wav,.mp3" />
     <span id="file-audio-name"></span>
-    <div class="status" id="audioStatus"></div>
+    <div class="status" id="audioStatus">上传后数字人会用这段原声对口型，声音从画面里出来（无需本地播放）。</div>
   </div>
 
   <div class="card">
@@ -191,6 +191,16 @@
     try {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      // 等待 ICE 候选收集完成，确保 offer 里带上 TURN 中继候选。
+      // 否则公网浏览器 offer 只含 host 候选（私网不可达），服务器回不去，
+      // 会出现 offer 200 但数字人一直不出画面的情况。
+      if (pc.iceGatheringState !== "complete") {
+        await new Promise((resolve) => {
+          const done = () => { if (pc.iceGatheringState === "complete") { pc.onicegatheringstatechange = null; resolve(); } };
+          pc.onicegatheringstatechange = done;
+          setTimeout(done, 4000); // 兜底：4s 内收集不到也继续（保底 host 候选）
+        });
+      }
       const res = await fetch("/webrtc/offer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -265,7 +275,7 @@
     audioStatus.textContent = "上传中…（广播到已连接的会话）";
     const contentType = f.type || "audio/wav";
     try {
-      const res = await fetch("/api/speak", {
+      const res = await fetch("/api/play", {
         method: "POST",
         headers: { "Content-Type": contentType },
         body: f,
@@ -275,7 +285,7 @@
         audioStatus.className = "status ok";
         const sessions = j.broadcast_to_sessions;
         const hint = sessions > 0
-          ? `✅ 数字人已用这段语音开口（${j.source}，广播到 ${sessions} 个会话）`
+          ? `✅ 数字人正在用这段原声对口型（${j.source}，广播到 ${sessions} 个会话）。声音会从画面里同步出来。`
           : "✅ 接口已接收（当前无已连接会话，数字人不会动）。请先点「连接数字人」再上传";
         audioStatus.textContent = hint;
       } else {

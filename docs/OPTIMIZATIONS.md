@@ -94,7 +94,7 @@ FlashHead 用一张参考图（`cond_image_path`）作为数字人的脸。**这
 
 ## 9. 上传超长语音 → 口型错位（帧积压 backlog）
 
-**现象**：`POST /api/speak` 上传一段较长音频（实测 **69 秒**），数字人口型和声音对不上（嘴动时刻与声音错位）。
+**现象**：`POST /api/play`（旧名 `/api/speak/audio`）上传一段较长音频（实测 **69 秒**），数字人口型和声音对不上（嘴动时刻与声音错位）。
 
 **根因**（pod 日志 `oac_run.log` 实测定量）：
 - `broadcast_speak` 把**整段音频一次性全量** `add_audio(..., end=True)` 喂给 FlashHead。

@@ -1,0 +1,45 @@
+# AvatarLive minimal demo: pure passthrough, NO ASR/VAD/LLM/TTS.
+#
+# Only RtcClient + FlashHead(段爱和人). The WebUI is mounted (mount_public_routes
+# defaults to true), so a browser can open https://<IP>:<port>/ , connect the
+# avatar, and POST an audio file to /api/play -> the digital human lip-syncs the
+# original voice. Speech audio is fed straight into FlashHead; nothing touches an
+# LLM/ASR/TTS, so it works with zero API keys.
+default:
+  logger:
+    log_level: "INFO"
+  service:
+    host: "0.0.0.0"
+    port: 8282
+    cert_file: "ssl_certs/localhost.crt"
+    cert_key: "ssl_certs/localhost.key"
+  chat_engine:
+    model_root: "models"
+    concurrent_limit: 2
+    handler_search_path:
+      - "src/handlers"
+    handler_configs:
+      RtcClient:
+        module: client/rtc_client/client_handler_rtc
+        connection_ttl: 900
+        concurrent_limit: 2
+        input_queue_size: 125
+        output_video_fps: 25
+        # mount_public_routes defaults to true -> mounts WebUI + /webrtc/offer
+        # + register_api(/api/play, /api/speak, /api/avatar).
+        turn_config:
+          turn_provider: "turn_server"
+          urls: ["turn:117.50.181.182:3478?transport=tcp", "turns:117.50.181.182:5349"]
+          username: "username"
+          credential: "password"
+      FlashHead:
+        module: avatar/flashhead/avatar_handler_flashhead
+        ckpt_dir: "models/SoulX-FlashHead-1_3B"
+        wav2vec_dir: "models/wav2vec2-base-960h"
+        model_type: "lite"
+        cond_image_path: "resource/avatar/flashhead/duanaihe_face512.png"
+        fps: 25
+        base_seed: 42
+        use_face_crop: false
+        paste_back: false
+        idle_noise_amplitude: 0.0
